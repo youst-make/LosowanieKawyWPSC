@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Avatar } from "./components/Avatar";
+import { coffeeApi } from "./utils/coffeeApi";
 
 const COLORS = [
   "#f97316", // orange
@@ -60,65 +61,102 @@ export default function App() {
   const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const savedMembers = localStorage.getItem("coffeeMembers");
-    const savedHistory = localStorage.getItem("coffeeHistory");
-    const savedDrawnInRound = localStorage.getItem(
-      "coffeeDrawnInRound",
-    );
+    const loadData = async () => {
+      try {
+        // Try loading from Supabase
+        const data = await coffeeApi.getData();
 
-    if (savedMembers) {
-      const parsedMembers = JSON.parse(savedMembers);
-      const membersWithColors = parsedMembers.map(
-        (m: TeamMember, index: number) => ({
-          ...m,
-          color: m.color || COLORS[index % COLORS.length],
-        }),
-      );
-      setMembers(membersWithColors);
-    }
+        if (data.members && data.members.length > 0) {
+          const membersWithColors = data.members.map(
+            (m: TeamMember, index: number) => ({
+              ...m,
+              color: m.color || COLORS[index % COLORS.length],
+            }),
+          );
+          setMembers(membersWithColors);
+        }
 
-    if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory);
-      const historyWithColors = parsedHistory.map(
-        (h: DrawHistory, index: number) => ({
-          ...h,
-          color: h.color || COLORS[index % COLORS.length],
-        }),
-      );
-      setHistory(historyWithColors);
-    }
+        if (data.history && data.history.length > 0) {
+          const historyWithColors = data.history.map(
+            (h: DrawHistory, index: number) => ({
+              ...h,
+              color: h.color || COLORS[index % COLORS.length],
+            }),
+          );
+          setHistory(historyWithColors);
+        }
 
-    if (savedDrawnInRound) {
-      setDrawnInRound(JSON.parse(savedDrawnInRound));
-    }
+        if (data.drawnInRound) {
+          setDrawnInRound(data.drawnInRound);
+        }
+      } catch (error) {
+        console.warn("Supabase not available, using localStorage fallback:", error);
 
-    setIsLoaded(true);
+        // Fallback to localStorage
+        const savedMembers = localStorage.getItem("coffeeMembers");
+        const savedHistory = localStorage.getItem("coffeeHistory");
+        const savedDrawnInRound = localStorage.getItem("coffeeDrawnInRound");
+
+        if (savedMembers) {
+          const parsedMembers = JSON.parse(savedMembers);
+          const membersWithColors = parsedMembers.map(
+            (m: TeamMember, index: number) => ({
+              ...m,
+              color: m.color || COLORS[index % COLORS.length],
+            }),
+          );
+          setMembers(membersWithColors);
+        }
+
+        if (savedHistory) {
+          const parsedHistory = JSON.parse(savedHistory);
+          const historyWithColors = parsedHistory.map(
+            (h: DrawHistory, index: number) => ({
+              ...h,
+              color: h.color || COLORS[index % COLORS.length],
+            }),
+          );
+          setHistory(historyWithColors);
+        }
+
+        if (savedDrawnInRound) {
+          setDrawnInRound(JSON.parse(savedDrawnInRound));
+        }
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    loadData();
   }, []);
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(
-        "coffeeMembers",
-        JSON.stringify(members),
-      );
+      // Save to Supabase with localStorage fallback
+      coffeeApi.saveMembers(members).catch((error) => {
+        console.warn("Supabase not available, using localStorage:", error);
+        localStorage.setItem("coffeeMembers", JSON.stringify(members));
+      });
     }
   }, [members, isLoaded]);
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(
-        "coffeeHistory",
-        JSON.stringify(history),
-      );
+      // Save to Supabase with localStorage fallback
+      coffeeApi.saveHistory(history).catch((error) => {
+        console.warn("Supabase not available, using localStorage:", error);
+        localStorage.setItem("coffeeHistory", JSON.stringify(history));
+      });
     }
   }, [history, isLoaded]);
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(
-        "coffeeDrawnInRound",
-        JSON.stringify(drawnInRound),
-      );
+      // Save to Supabase with localStorage fallback
+      coffeeApi.saveDrawnInRound(drawnInRound).catch((error) => {
+        console.warn("Supabase not available, using localStorage:", error);
+        localStorage.setItem("coffeeDrawnInRound", JSON.stringify(drawnInRound));
+      });
     }
   }, [drawnInRound, isLoaded]);
 
@@ -275,21 +313,31 @@ export default function App() {
     setShowWinnerModal(false);
   };
 
-  const startNewGame = () => {
+  const startNewGame = async () => {
     setShowNewGameConfirm(false);
     setMembers([]);
     setHistory([]);
     setCurrentWinner(null);
     setShowWinnerModal(false);
     setDrawnInRound([]);
-    localStorage.removeItem("coffeeMembers");
-    localStorage.removeItem("coffeeHistory");
-    localStorage.removeItem("coffeeDrawnInRound");
+    try {
+      await coffeeApi.clearAllData();
+    } catch (error) {
+      console.warn("Supabase not available, clearing localStorage:", error);
+      localStorage.removeItem("coffeeMembers");
+      localStorage.removeItem("coffeeHistory");
+      localStorage.removeItem("coffeeDrawnInRound");
+    }
   };
 
-  const clearHistory = () => {
+  const clearHistory = async () => {
     setHistory([]);
-    localStorage.removeItem("coffeeHistory");
+    try {
+      await coffeeApi.saveHistory([]);
+    } catch (error) {
+      console.warn("Supabase not available, using localStorage:", error);
+      localStorage.removeItem("coffeeHistory");
+    }
   };
 
   const activeMembers = members.filter((m) => !m.onVacation);
