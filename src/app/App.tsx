@@ -28,6 +28,24 @@ const COLORS = [
   "#ec4899", // pink
 ];
 
+const COFFEE_QUOTES = [
+  "Kto kupuje kawę dla zespołu?",
+  "Kawa to płynna motywacja!",
+  "Bez kawy nie ma kodowania.",
+  "Espresso yourself!",
+  "Kawa łączy ludzi i rozwiązania.",
+  "Życie jest za krótkie na złą kawę.",
+  "Kawa to hug w kubku.",
+  "Programuję, więc piję kawę.",
+  "Kawa najpierw, pytania później.",
+  "Dobra kawa = dobry kod.",
+  "Kawa to paliwo dla programistów.",
+  "Depresso without espresso.",
+  "May the coffee be with you!",
+  "Keep calm and drink coffee.",
+  "Kawa to magia w filiżance.",
+];
+
 interface TeamMember {
   id: number;
   name: string;
@@ -58,9 +76,14 @@ export default function App() {
     [],
   );
   const [isLoaded, setIsLoaded] = useState(false);
+  const [coffeeQuote, setCoffeeQuote] = useState("");
   const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Set random coffee quote
+    const randomQuote = COFFEE_QUOTES[Math.floor(Math.random() * COFFEE_QUOTES.length)];
+    setCoffeeQuote(randomQuote);
+
     const loadData = async () => {
       try {
         // Try loading from Supabase
@@ -363,7 +386,7 @@ export default function App() {
             </h1>
           </div>
           <p className="text-cyan-700">
-            Kto kupuje kawę dla zespołu?
+            {coffeeQuote}
           </p>
         </div>
 
